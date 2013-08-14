@@ -117,7 +117,15 @@ int main(int argc, char **argv)
   moveit_workspace_analysis::WorkspaceAnalysis workspace_analysis(planning_scene, true, joint_limits_penalty_multiplier);  
 
   /* Compute the metrics */
-  std::vector<geometry_msgs::Quaternion> orientations;  
+  std::vector<geometry_msgs::Quaternion> orientations;
+  geometry_msgs::Quaternion quaternion;
+
+  double angle_rad = -M_PI*0.5;
+  quaternion.w = cos(angle_rad*0.5f);
+  quaternion.z = sin(angle_rad*0.5f);
+
+  orientations.push_back(quaternion);
+
   moveit_workspace_analysis::WorkspaceMetrics metrics = workspace_analysis.computeMetrics(workspace, orientations, joint_state_group, res_x, res_y, res_z);
   
   if(!filename.empty())
