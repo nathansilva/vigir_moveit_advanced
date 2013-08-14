@@ -45,9 +45,10 @@ WorkspaceAnalysis::WorkspaceAnalysis(const planning_scene::PlanningSceneConstPtr
 bool WorkspaceAnalysis::isIKSolutionCollisionFree(robot_state::JointStateGroup *joint_state_group,
                                                   const std::vector<double> &ik_solution)
 {
-  joint_state_group->setVariableValues(ik_solution);
-  bool result = !planning_scene_->isStateColliding(*joint_state_group->getRobotState(), joint_state_group->getName());
-  return result;  
+  //joint_state_group->setVariableValues(ik_solution);
+  //bool result = !planning_scene_->isStateColliding(*joint_state_group->getRobotState(), joint_state_group->getName());
+  //return result;  
+  return true;
 }
 
 std::vector<geometry_msgs::Pose> WorkspaceAnalysis::sampleUniform(const moveit_msgs::WorkspaceParameters &workspace, 
@@ -336,6 +337,7 @@ visualization_msgs::Marker WorkspaceMetrics::getMarker(double marker_scale, unsi
     marker.points.push_back(points_[i].position);
     std_msgs::ColorRGBA color;
     color.a = 1.0;
+    color.a = 0.5;
     color.g = 0.0;
     color.r = manipulability_[i]/max_manip;
     color.b = 1 - manipulability_[i]/max_manip;      
