@@ -40,6 +40,8 @@
 #include <fstream>
 #include <iostream>
 
+#include <tf/tf.h>
+
 int main(int argc, char **argv)
 {
   ros::init (argc, argv, "workspace_analysis");
@@ -51,6 +53,7 @@ int main(int argc, char **argv)
   double res_x, res_y, res_z;
   double min_x, min_y, min_z;
   double max_x, max_y, max_z;
+  double roll, pitch, yaw;
   double joint_limits_penalty_multiplier;  
   std::string group_name;  
   
@@ -74,6 +77,13 @@ int main(int argc, char **argv)
     max_z = 0.0;
   if (!node_handle.getParam("res_z", res_z))
     res_z = 0.1;
+
+  if (!node_handle.getParam("roll", roll))
+    roll = 0.0;
+  if (!node_handle.getParam("pitch", pitch))
+    pitch = 0.0;
+  if (!node_handle.getParam("yaw", yaw))
+    yaw = 0.0;
 
   if (!node_handle.getParam("joint_limits_penalty_multiplier", joint_limits_penalty_multiplier))
     joint_limits_penalty_multiplier = 0.0;
@@ -120,9 +130,14 @@ int main(int argc, char **argv)
   std::vector<geometry_msgs::Quaternion> orientations;
   geometry_msgs::Quaternion quaternion;
 
-  double angle_rad = -M_PI*0.5;
-  quaternion.w = cos(angle_rad*0.5f);
-  quaternion.z = sin(angle_rad*0.5f);
+  //yaw = -M_PI*0.0;
+  //roll = M_PI*0.49;
+
+  // translate roll, pitch and yaw into a Quaternion
+  tf::Quaternion q;
+  q.setRPY(roll, pitch, yaw);
+  geometry_msgs::Quaternion odom_quat;
+  tf::quaternionTFToMsg(q, quaternion);
 
   orientations.push_back(quaternion);
 
