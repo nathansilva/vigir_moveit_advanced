@@ -137,8 +137,12 @@ int main(int argc, char **argv)
 
   /* Load the workspace analysis */
   moveit_workspace_analysis::WorkspaceAnalysis workspace_analysis(planning_scene, true, joint_limits_penalty_multiplier);
+  
+  ros::Time init_time;
+  moveit_workspace_analysis::WorkspaceMetrics metrics;
 
   /* Compute the metrics */
+  
   bool use_vigir_rpy = true;
   if (use_vigir_rpy){
     std::vector<geometry_msgs::Quaternion> orientations;
@@ -155,7 +159,7 @@ int main(int argc, char **argv)
 
     orientations.push_back(quaternion);
 
-    moveit_workspace_analysis::WorkspaceMetrics metrics = workspace_analysis.computeMetrics(workspace, orientations, joint_state_group, res_x, res_y, res_z);
+    metrics = workspace_analysis.computeMetrics(workspace, orientations, robot_state.get(), joint_model_group, res_x, res_y, res_z);
   }else{
     
     // load the set of quaternions
@@ -167,11 +171,10 @@ int main(int argc, char **argv)
       geometry_msgs::Quaternion temp_quat;
       orientations.push_back(temp_quat);
     }
-    
-    ros::Time init_time;
+        
     init_time = ros::Time::now();
     
-    moveit_workspace_analysis::WorkspaceMetrics metrics = workspace_analysis.computeMetrics(workspace, orientations, robot_state.get(), joint_model_group, res_x, res_y, res_z);
+    metrics = workspace_analysis.computeMetrics(workspace, orientations, robot_state.get(), joint_model_group, res_x, res_y, res_z);
     
     if(metrics.points_.empty())
       ROS_WARN_STREAM("No point to be written to file: consider changing the workspace, or recompiling moveit_workspace_analysis with a longer sleeping time at the beginning (if this could be the cause)");
