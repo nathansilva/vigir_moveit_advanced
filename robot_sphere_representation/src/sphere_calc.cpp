@@ -14,7 +14,7 @@
  *     copyright notice, this list of conditions and the following
  *     disclaimer in the documentation and/or other materials provided
  *     with the distribution.
- *   * Neither the name of the Willow Garage nor the names of its
+ *   * Neither the name of Willow Garage nor the names of its
  *     contributors may be used to endorse or promote products derived
  *     from this software without specific prior written permission.
  *
@@ -36,7 +36,7 @@
 
 #include <moveit/robot_sphere_representation/sphere_calc.h>
 #include <moveit/distance_field/propagation_distance_field.h>
-#include <moveit/distance_field/distance_field_common.h>
+#include <moveit/distance_field/find_internal_points.h>
 #include <moveit/robot_state/robot_state.h>
 #include <geometric_shapes/bodies.h>
 #include <geometric_shapes/body_operations.h>
@@ -136,7 +136,7 @@ private:
     ros::Time begin_;
     Category cat_;
   };
-  
+
   Bucket buckets_[COUNT];
   std::vector<StackEntry> stack_;
   std::vector<Category>order_list_;
@@ -328,7 +328,7 @@ void robot_sphere_representation::PointCluster::findClusters()
   centers_.resize(nclusters_);
   for (std::size_t i = 0; i < nclusters_ ; ++i)
     centers_[i] = points_[i];
-  
+
 
   assignClusters();
   moveCenters();
@@ -344,7 +344,7 @@ void robot_sphere_representation::PointCluster::findClusters()
     cnt++;
   }
   while(old_clusters != clusters_ && cnt < 1000);
-  
+
   logInform("Found %d clusters in %d iterations", (int)nclusters_, cnt);
   for (std::size_t i = 0; i < nclusters_ ; ++i)
     logInform("center[%d] = (%7.3f, %7.3f, %7.3f)", (int)i, centers_[i].x(), centers_[i].y(), centers_[i].z());
@@ -446,7 +446,7 @@ public:
     vorigin_(origin_x, origin_y, origin_z)
   {}
 
-  
+
   double getDistanceNoCheck(const V3i& point) const;
   double getDistance(const V3i& point) const;
   double getDistanceQuick(const V3& point) const;
@@ -487,7 +487,7 @@ double robot_sphere_representation::SphereCalc::Grid::getDistanceInterp(const V3
   o_floor.x() = std::floor(offset.x());
   o_floor.y() = std::floor(offset.y());
   o_floor.z() = std::floor(offset.z());
-  
+
   int x = int(o_floor.x());
   int y = int(o_floor.y());
   int z = int(o_floor.z());
@@ -499,7 +499,7 @@ double robot_sphere_representation::SphereCalc::Grid::getDistanceInterp(const V3
 
   V3 o_pfrac = offset - o_floor;
   V3 o_nfrac = 1.0 - o_pfrac.array();
-  
+
   return
     (getCell(x+0, y+0, z+0).distance_ * o_nfrac.x() *  o_nfrac.y() * o_nfrac.z()) +
     (getCell(x+1, y+0, z+0).distance_ * o_pfrac.x() *  o_nfrac.y() * o_nfrac.z()) +
@@ -509,7 +509,7 @@ double robot_sphere_representation::SphereCalc::Grid::getDistanceInterp(const V3
     (getCell(x+1, y+0, z+1).distance_ * o_pfrac.x() *  o_nfrac.y() * o_pfrac.z()) +
     (getCell(x+0, y+1, z+1).distance_ * o_nfrac.x() *  o_pfrac.y() * o_pfrac.z()) +
     (getCell(x+1, y+1, z+1).distance_ * o_pfrac.x() *  o_pfrac.y() * o_pfrac.z());
-  
+
 }
 
 struct robot_sphere_representation::SphereCalc::ConcaveVoxel
@@ -543,7 +543,7 @@ public:
     // , vorigin_(origin_x, origin_y, origin_z)
   {}
 
-  
+
   ConcaveVoxel& getVoxel(const V3i& point)
   {
     return getCell(point.x(), point.y(), point.z());
@@ -577,7 +577,8 @@ robot_sphere_representation::SphereCalc::SphereCalc(
       double resolution,
       const EigenSTL::vector_Vector3d& required_points,
       const EigenSTL::vector_Vector3d& optional_points,
-      const robot_state::LinkState* link_state,
+      const moveit::core::RobotStateConstPtr &robot_state,
+      const moveit::core::LinkModel* link_model,
       const std::string& name,
       GenMethod gen_method,
       double tolerance,
@@ -593,7 +594,8 @@ robot_sphere_representation::SphereCalc::SphereCalc(
   , use_required_points_(&required_points_)
   , save_history_(true)
   , name_(name)
-  , link_state_(link_state)
+  , robot_state_(robot_state)
+  , link_model_(link_model)
 {
   current_.qual_method_ = qual_method;
 
@@ -727,7 +729,7 @@ void robot_sphere_representation::SphereCalc::thinInternalPoints()
         surf_list.push_back(ip);
     }
   }
-  
+
   // check for nearby points
   for (V3iList::const_iterator p = surf_list.begin() ; p != surf_list.end() ; ++p)
   {
@@ -774,7 +776,7 @@ void robot_sphere_representation::SphereCalc::thinInternalPoints()
         mask |= bits[idx];
       }
     }
-      
+
     if (cnt >= 24)
       continue;     // internal point or inside of a curve
     else if (cnt >= 17)
@@ -865,7 +867,7 @@ void robot_sphere_representation::SphereCalc::thinInternalPoints()
   thinned_required_points_.clear();
   thinned_required_points_.reserve(thinned_points.size());
   for (V3iSet::const_iterator p = thinned_points.begin() ; p != thinned_points.end() ; ++p)
-  { 
+  {
     V3 wp;
     df_->gridToWorld(p->x(), p->y(), p->z(), wp.x(), wp.y(), wp.z());
     thinned_required_points_.push_back(wp);
@@ -1247,7 +1249,7 @@ void robot_sphere_representation::SphereCalc::solveUsingGreedy(int max_spheres)
         if ((*center - *point).squaredNorm() <= dsq)
           cnt++;
       }
-      
+
       if (cnt > best_cnt ||
           (cnt == best_cnt && d > best_d))
       {
@@ -1725,9 +1727,9 @@ bool robot_sphere_representation::SphereCalc::calcConcaveVoxelGrid()
   PROF_PUSH_SCOPED(SphereCalc_calcConcaveVoxelGrid);
   PROF_PUSH_SCOPED(SphereCalc_calcConcaveVoxelGrid_createMesh);
 
-  const robot_model::LinkModel* lm = link_state_->getLinkModel();
-  const shapes::ShapeConstPtr& shape = lm->getShape();
-  
+  // \todo make this work with multiple shapes
+  const shapes::ShapeConstPtr& shape = link_model_->getShapes()[0];
+
   if (!shape)
     return false;
 
@@ -1765,7 +1767,7 @@ bool robot_sphere_representation::SphereCalc::calcConcaveVoxelGrid()
   }
 
   Eigen::Vector3d size = aabb.max_ - aabb.min_;
-  
+
 
   // create a distance field for required points.
   // Points in mesh outside this are considered optional.
@@ -1787,11 +1789,12 @@ bool robot_sphere_representation::SphereCalc::calcConcaveVoxelGrid()
                                   aabb.min_.y(),
                                   aabb.min_.z(),
                                   ConcaveVoxel()));
-                                    
+
   PROF_POP();
   PROF_PUSH_SCOPED(SphereCalc_calcConcaveVoxelGrid_GatherPoints);
 
-  const Eigen::Affine3d& xform = link_state_->getGlobalCollisionBodyTransform();
+  // \todo make this work with more shapes
+  const Eigen::Affine3d& xform = robot_state_->getCollisionBodyTransform(link_model_, 0);
 
   EigenSTL::vector_Vector3d points;
   if (mesh_shape)
@@ -2173,7 +2176,7 @@ void robot_sphere_representation::SphereCalc::findRadius2ByLeastDistance()
       {
         break;
       }
-      
+
 
       double d = std::sqrt(dsq) - current_.radius1_[sphere] + spheres_[sphere].center_exterior_distance_;
       if (d < best_d)
@@ -2349,7 +2352,7 @@ void robot_sphere_representation::SphereCalc::sphereIterate(
   V3 max = center + radv;
   min = min.array().max(grid_aabb_.min_.array());
   max = max.array().min(grid_aabb_.max_.array());
-  
+
   if (!df_->worldToGrid(min.x(), min.y(), min.z(), imin.x(), imin.y(), imin.z()))
     abort();
   if (!df_->worldToGrid(max.x(), max.y(), max.z(), imax.x(), imax.y(), imax.z()))
@@ -2373,7 +2376,7 @@ void robot_sphere_representation::SphereCalc::sphereIterate(
 
 inline const std::string& robot_sphere_representation::Link::getName() const
 {
-  return lstate_->getName();
+  return lmodel_->getName();
 }
 
 const robot_sphere_representation::SphereCalc* robot_sphere_representation::Link::getSphereCalc(
@@ -2423,7 +2426,7 @@ const robot_sphere_representation::SphereCalc* robot_sphere_representation::Link
       points.size(),
       optional_points.size());
 
-    sphere_calc_ = new SphereCalc(nspheres, robot_->resolution_, points, optional_points, lstate_, getName(), gen_method, tolerance, qual_method);
+    sphere_calc_ = new SphereCalc(nspheres, robot_->resolution_, points, optional_points, robot_state_, lmodel_, getName(), gen_method, tolerance, qual_method);
   }
   else
   {
@@ -2460,7 +2463,7 @@ void robot_sphere_representation::Link::clusterPoints(std::size_t nclusters)
 
   delete cluster_;
   cluster_ = new robot_sphere_representation::PointCluster(nclusters, points);
-} 
+}
 
 EigenSTL::vector_Vector3d robot_sphere_representation::Link::getClusterPoints(
                                                           std::size_t nclusters,
@@ -2472,7 +2475,7 @@ EigenSTL::vector_Vector3d robot_sphere_representation::Link::getClusterPoints(
   cluster_->setNClusters(nclusters);
 
   return cluster_->getClusterPoints(cluster_idx);
-} 
+}
 
 void robot_sphere_representation::Robot::getLinkClusterPointsMarker(
           const std::string& link_name,
@@ -2526,10 +2529,12 @@ EigenSTL::vector_Vector3d robot_sphere_representation::Robot::getCluster(
 
 robot_sphere_representation::Link::Link(Robot *robot,
                                         Link *parent,
-                                        const robot_model::LinkModel *lmodel)
+                                        const moveit::core::RobotStateConstPtr &state,
+                                        const moveit::core::LinkModel *lmodel)
   : robot_(robot)
   , parent_(parent)
-  , lstate_(robot->kstate_->getLinkState(lmodel->getName()))
+  , robot_state_(state)
+  , lmodel_(lmodel)
   , has_collision_(false)
   , cluster_(NULL)
   , sphere_calc_(NULL)
@@ -2545,15 +2550,18 @@ robot_sphere_representation::Link::~Link()
 
 void robot_sphere_representation::Link::calculatePoints()
 {
-  const shapes::ShapeConstPtr& shape = lstate_->getLinkModel()->getShape();
+  // \todo make this work for multiple shapes
+  const shapes::ShapeConstPtr& shape = lmodel_->getShapes()[0];
   if (!shape)
     return;
   body_ = bodies::createBodyFromShape(shape.get());
   if (!body_)
     return;
 
-  body_->setPose(lstate_->getGlobalCollisionBodyTransform());
-  EigenSTL::vector_Vector3d points = distance_field::determineCollisionPoints(body_, robot_->resolution_);
+  // \todo make this work for multiple shapes
+  body_->setPose(robot_state_->getCollisionBodyTransform(lmodel_, 0));
+  EigenSTL::vector_Vector3d points;
+  distance_field::findInternalPointsConvex(*body_, robot_->resolution_, points);
   for (EigenSTL::vector_Vector3d::const_iterator it = points.begin() ;
        it != points.end() ;
        ++it)
@@ -2564,19 +2572,21 @@ void robot_sphere_representation::Link::calculatePoints()
   }
 
   has_collision_ = !all_points_.empty();
-} 
+}
 
 Eigen::Vector3d robot_sphere_representation::Link::transformRobotToLink(
       Eigen::Vector3d p)
 {
-  return lstate_->getGlobalCollisionBodyTransform().inverse() * p;
+  // \todo make this work for multiple shapes
+  return robot_state_->getCollisionBodyTransform(lmodel_, 0).inverse() * p;
 }
 
 void robot_sphere_representation::Link::transformRobotToLink(
       EigenSTL::vector_Vector3d::iterator begin,
       EigenSTL::vector_Vector3d::iterator end)
 {
-  Eigen::Affine3d xform = lstate_->getGlobalCollisionBodyTransform().inverse();
+  // \todo make this work for multiple shapes
+  Eigen::Affine3d xform = robot_state_->getCollisionBodyTransform(lmodel_, 0).inverse();
   for( ; begin != end ; ++begin)
   {
     *begin = xform * *begin;
@@ -2705,15 +2715,15 @@ void robot_sphere_representation::Robot::getLinkFinalPointsMarker(
   }
 }
 
-void robot_sphere_representation::Robot::initLink(Link *parent, const robot_model::LinkModel *lmodel)
+void robot_sphere_representation::Robot::initLink(Link *parent, const moveit::core::LinkModel *lmodel)
 {
-  Link *link = new Link(this, parent, lmodel);
+  Link *link = new Link(this, parent, robot_state_, lmodel);
 
   link->calculatePoints();
   links_[lmodel->getName()] = link;
 
-  const std::vector<robot_model::JointModel*>& children = lmodel->getChildJointModels();
-  for (std::vector<robot_model::JointModel*>::const_iterator it = children.begin() ;
+  const std::vector<const moveit::core::JointModel*>& children = lmodel->getChildJointModels();
+  for (std::vector<const moveit::core::JointModel*>::const_iterator it = children.begin() ;
        it != children.end() ;
        ++it)
   {
@@ -2721,7 +2731,7 @@ void robot_sphere_representation::Robot::initLink(Link *parent, const robot_mode
   }
 }
 
-void robot_sphere_representation::Robot::initJoint(Link *parent, const robot_model::JointModel *jmodel)
+void robot_sphere_representation::Robot::initJoint(Link *parent, const moveit::core::JointModel *jmodel)
 {
   initLink(parent, jmodel->getChildLinkModel());
 }
@@ -2749,23 +2759,23 @@ static void diff(const robot_sphere_representation::V3iSet& a,
  *  pre - called before traversing to child.  Return true to stop traversal (skip children), true to keep going deeper.
  *  post - called after traversing children.  */
 static void TraverseLinkTree(
-    const robot_model::LinkModel &link_model,
+    const moveit::core::LinkModel &link_model,
     int max_depth,
-    boost::function<bool (const robot_model::LinkModel&)> pre,
-    boost::function<void (const robot_model::LinkModel&)> post)
+    boost::function<bool (const moveit::core::LinkModel&)> pre,
+    boost::function<void (const moveit::core::LinkModel&)> post)
 {
-  //const robot_model::LinkModel *link_model = kmodel_.getLinkModel(link_name);
+  //const moveit::core::LinkModel *link_model = robot_model_.getLinkModel(link_name);
   bool stop = pre(link_model);
   if (!stop && max_depth != 0)
   {
     if (max_depth > 0)
       --max_depth;
 
-    for (std::vector<robot_model::JointModel*>::const_iterator it = link_model.getChildJointModels().begin() ;
+    for (std::vector<const moveit::core::JointModel*>::const_iterator it = link_model.getChildJointModels().begin() ;
          it != link_model.getChildJointModels().end() ;
          ++it)
     {
-      const robot_model::LinkModel *child_link = (*it)->getChildLinkModel();
+      const moveit::core::LinkModel *child_link = (*it)->getChildLinkModel();
       if (child_link)
         TraverseLinkTree(*child_link, max_depth, pre, post);
     }
@@ -2773,16 +2783,16 @@ static void TraverseLinkTree(
   post(link_model);
 }
 
-static bool TraverseLinkTreeNullPre(const robot_model::LinkModel&)
+static bool TraverseLinkTreeNullPre(const moveit::core::LinkModel&)
 {
   return false;
 }
 
-static void TraverseLinkTreeNullPost(const robot_model::LinkModel&)
+static void TraverseLinkTreeNullPost(const moveit::core::LinkModel&)
 {
 }
 
-bool robot_sphere_representation::Robot::RemoveChildOccludedLinks2Pre(const robot_model::LinkModel& link_model,
+bool robot_sphere_representation::Robot::RemoveChildOccludedLinks2Pre(const moveit::core::LinkModel& link_model,
                                                                    Link *parent)
 {
   Link *link = getLink(link_model.getName());
@@ -2795,12 +2805,12 @@ bool robot_sphere_representation::Robot::RemoveChildOccludedLinks2Pre(const robo
   return false;
 }
 
-void robot_sphere_representation::Robot::RemoveChildOccludedLinksPost(const robot_model::LinkModel& link_model)
+void robot_sphere_representation::Robot::RemoveChildOccludedLinksPost(const moveit::core::LinkModel& link_model)
 {
   Link *link = getLink(link_model.getName());
   if (link && link->has_collision_)
   {
-    TraverseLinkTree(*kmodel_->getRootLink(), 
+    TraverseLinkTree(*robot_model_->getRootLink(),
                      -1,
                      boost::bind(&Robot::RemoveChildOccludedLinks2Pre, this, _1, link),
                      TraverseLinkTreeNullPost);
@@ -2836,14 +2846,14 @@ void robot_sphere_representation::Robot::RemoveChildOccludedLinks()
 {
   logInform("BEGIN TRAVERSING LINKS for RemoveChildOccludedLinks");
   PROF_PUSH_SCOPED(RemoveChildOccludedLinks);
-  TraverseLinkTree(*kmodel_->getRootLink(), 
+  TraverseLinkTree(*robot_model_->getRootLink(),
                    -1,
                    TraverseLinkTreeNullPre,
                    boost::bind(&Robot::RemoveChildOccludedLinksPost, this, _1));
   logInform("END TRAVERSING LINKS for RemoveChildOccludedLinks");
 }
 
-bool robot_sphere_representation::Robot::CullLinks2Pre(const robot_model::LinkModel& link_model,
+bool robot_sphere_representation::Robot::CullLinks2Pre(const moveit::core::LinkModel& link_model,
                                                          Link *parent)
 {
   Link *link = getLink(link_model.getName());
@@ -2860,7 +2870,7 @@ bool robot_sphere_representation::Robot::CullLinks2Pre(const robot_model::LinkMo
   return false;
 }
 
-bool robot_sphere_representation::Robot::CullLinksPre(const robot_model::LinkModel& link_model)
+bool robot_sphere_representation::Robot::CullLinksPre(const moveit::core::LinkModel& link_model)
 {
   Link *link = getLink(link_model.getName());
   if (link && link->has_collision_)
@@ -2877,7 +2887,7 @@ bool robot_sphere_representation::Robot::CullLinksPre(const robot_model::LinkMod
         continue;
 
       V3iSet points2;
-      
+
       std::set_difference(link->post_cull_points_.begin(),
                           link->post_cull_points_.end(),
                           parent->all_points_.begin(),
@@ -2917,7 +2927,7 @@ void robot_sphere_representation::Robot::CullLinks()
 {
   logInform("BEGIN TRAVERSING LINKS for CullLinks");
   PROF_PUSH_SCOPED(CullLinks);
-  TraverseLinkTree(*kmodel_->getRootLink(), 
+  TraverseLinkTree(*robot_model_->getRootLink(),
                    -1,
                    boost::bind(&Robot::CullLinksPre, this, _1),
                    TraverseLinkTreeNullPost);
@@ -2925,7 +2935,7 @@ void robot_sphere_representation::Robot::CullLinks()
 }
 
 
-bool robot_sphere_representation::Robot::GenerateFinalPointsPre(const robot_model::LinkModel& link_model)
+bool robot_sphere_representation::Robot::GenerateFinalPointsPre(const moveit::core::LinkModel& link_model)
 {
   Link *link = getLink(link_model.getName());
   if (link)
@@ -2977,7 +2987,7 @@ void robot_sphere_representation::Robot::GenerateFinalPoints()
 {
   logInform("BEGIN TRAVERSING LINKS for GenerateFinalPoints");
   PROF_PUSH_SCOPED(GenerateFinalPoints);
-  TraverseLinkTree(*kmodel_->getRootLink(), 
+  TraverseLinkTree(*robot_model_->getRootLink(),
                    -1,
                    boost::bind(&Robot::GenerateFinalPointsPre, this, _1),
                    TraverseLinkTreeNullPre);
@@ -2986,7 +2996,7 @@ void robot_sphere_representation::Robot::GenerateFinalPoints()
 
 
 
-bool robot_sphere_representation::Robot::RemoveTempPointsPre(const robot_model::LinkModel& link_model)
+bool robot_sphere_representation::Robot::RemoveTempPointsPre(const moveit::core::LinkModel& link_model)
 {
   Link *link = getLink(link_model.getName());
   if (link)
@@ -3001,7 +3011,7 @@ bool robot_sphere_representation::Robot::RemoveTempPointsPre(const robot_model::
 void robot_sphere_representation::Robot::RemoveTempPoints()
 {
   PROF_PUSH_SCOPED(RemoveTempPoints);
-  TraverseLinkTree(*kmodel_->getRootLink(), 
+  TraverseLinkTree(*robot_model_->getRootLink(),
                    -1,
                    boost::bind(&Robot::RemoveTempPointsPre, this, _1),
                    TraverseLinkTreeNullPost);
@@ -3009,10 +3019,10 @@ void robot_sphere_representation::Robot::RemoveTempPoints()
 
 
 robot_sphere_representation::Robot::Robot(
-              const robot_model::RobotModelConstPtr& kmodel,
+              const moveit::core::RobotModelConstPtr& robot_model,
               double resolution) :
-  kmodel_(kmodel),
-  kstate_(new robot_state::RobotState(kmodel_)),
+  robot_model_(robot_model),
+  robot_state_(new moveit::core::RobotState(robot_model_)),
   resolution_(resolution),
   oo_resolution_(1.0/resolution)
 {
@@ -3020,10 +3030,10 @@ robot_sphere_representation::Robot::Robot(
   if (!g_profTracker)
     g_profTracker = new ProfTracker();
 
-  kstate_->setToDefaultValues();
+  robot_state_->setToDefaultValues();
 
   PROF_PUSH(FindLinkPoints);
-  initJoint(NULL, kmodel->getRoot());
+  initJoint(NULL, robot_model->getRootJoint());
   PROF_POP();
 
 #if 0
@@ -3034,7 +3044,7 @@ robot_sphere_representation::Robot::Robot(
 
   GenerateFinalPoints();
   RemoveTempPoints();
-  
+
   PROF_PRINT_CLEAR();
   logInform("Done generating CollisionRobotDF2 init data...");
 }
@@ -3062,6 +3072,3 @@ void robot_sphere_representation::DFLinkGrid::clear()
   DFGrid<DFVoxel>::clear(vox);
 }
 #endif
-
-
-

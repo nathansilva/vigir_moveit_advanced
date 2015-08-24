@@ -14,7 +14,7 @@
  *     copyright notice, this list of conditions and the following
  *     disclaimer in the documentation and/or other materials provided
  *     with the distribution.
- *   * Neither the name of the Willow Garage nor the names of its
+ *   * Neither the name of Willow Garage nor the names of its
  *     contributors may be used to endorse or promote products derived
  *     from this software without specific prior written permission.
  *
@@ -45,10 +45,13 @@
 
 #include <moveit/robot_model/link_model.h>
 
-namespace robot_model
+namespace moveit
+{
+namespace core
 {
 class RobotModel;
 class LinkModel;
+}
 }
 
 namespace srdf
@@ -70,10 +73,10 @@ class SphereCalc;
 class LinkSphereRepresentation
 {
 public:
-  LinkSphereRepresentation(RobotSphereRepresentation *robot, const robot_model::LinkModel *link_model);
+  LinkSphereRepresentation(RobotSphereRepresentation *robot, const moveit::core::LinkModel *link_model);
   ~LinkSphereRepresentation();
 
-  const std::string& getName() const { return link_model_->getName(); }
+  const std::string& getName() const;
 
   // Set what method to use to generate spheres.
   // Spheres are actually generated when they are requested from
@@ -130,7 +133,7 @@ public:
 
   // Actually generate the spheres.  This is not needed as it is called from
   // getSpheres() when required.  However, calling it will ensure that a future
-  // call to getSpheres() returns quickly. 
+  // call to getSpheres() returns quickly.
   // This function is const because it only changes mutable data.  Conceptually
   // the spheres themselves are "changed" only when parameters change.  This
   // function is just updating them.
@@ -159,7 +162,7 @@ private:
 
 
   RobotSphereRepresentation *robot_;
-  const robot_model::LinkModel *link_model_;
+  const moveit::core::LinkModel *link_model_;
 
   // the spheres that bound this link.
   mutable EigenSTL::vector_Vector3d centers_;
@@ -197,4 +200,3 @@ inline robot_sphere_representation::Link* robot_sphere_representation::LinkSpher
 
 
 #endif
-

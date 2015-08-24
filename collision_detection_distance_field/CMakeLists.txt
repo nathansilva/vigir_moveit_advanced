@@ -5,8 +5,6 @@ if(NOT CMAKE_CONFIGURATION_TYPES AND NOT CMAKE_BUILD_TYPE)
   set(CMAKE_BUILD_TYPE Release)
 endif()
 
-find_package(Eigen REQUIRED)
-find_package(Boost REQUIRED system filesystem date_time thread iostreams)
 find_package(
   catkin
   REQUIRED
@@ -22,7 +20,11 @@ find_package(
     shape_msgs
     shape_tools
     visualization_msgs
+    cmake_modules
 )
+
+find_package(Eigen REQUIRED)
+find_package(Boost REQUIRED system filesystem date_time thread iostreams)
 
 catkin_package(
   INCLUDE_DIRS
@@ -77,7 +79,7 @@ add_library(
 # This is needed to ensure that messages are done being built before this is built
 add_dependencies(
   collision_detection_distance_field
-    moveit_msgs_gencpp
+  ${catkin_EXPORTED_TARGETS}
 )
 
 target_link_libraries(

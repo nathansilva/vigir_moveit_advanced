@@ -14,7 +14,7 @@
  *     copyright notice, this list of conditions and the following
  *     disclaimer in the documentation and/or other materials provided
  *     with the distribution.
- *   * Neither the name of the Willow Garage nor the names of its
+ *   * Neither the name of Willow Garage nor the names of its
  *     contributors may be used to endorse or promote products derived
  *     from this software without specific prior written permission.
  *
@@ -46,7 +46,7 @@
 #include <assert.h>
 
 robot_sphere_representation::LinkSphereRepresentation::LinkSphereRepresentation(
-      RobotSphereRepresentation *robot, 
+      RobotSphereRepresentation *robot,
       const robot_model::LinkModel *link_model)
   : robot_(robot)
   , link_model_(link_model)
@@ -59,6 +59,7 @@ robot_sphere_representation::LinkSphereRepresentation::LinkSphereRepresentation(
 robot_sphere_representation::LinkSphereRepresentation::~LinkSphereRepresentation()
 {}
 
+const std::string& robot_sphere_representation::LinkSphereRepresentation::getName() const { return link_model_->getName(); }
 
 void robot_sphere_representation::LinkSphereRepresentation::setRequestedNumSpheres(int nspheres)
 {
@@ -109,7 +110,7 @@ void robot_sphere_representation::LinkSphereRepresentation::setQualMethod(QualMe
 }
 
 void robot_sphere_representation::LinkSphereRepresentation::getSpheres(
-        EigenSTL::vector_Vector3d& centers, 
+        EigenSTL::vector_Vector3d& centers,
         std::vector<double>& radii) const
 {
   genSpheres();
@@ -204,17 +205,20 @@ void robot_sphere_representation::LinkSphereRepresentation::genSpheresUsingBound
   centers_.clear();
   radii_.clear();
 
-  const shapes::ShapeConstPtr& shape = link_model_->getShape();
-  if (!shape)
+  const std::vector<shapes::ShapeConstPtr>& shapes = link_model_->getShapes();
+  if (shapes.empty())
     return;
 
-  double radius;
-  Eigen::Vector3d center;
-  shapes::computeShapeBoundingSphere(shape.get(), center, radius);
-  if (radius > std::numeric_limits<double>::min())
+  for (std::size_t i = 0 ; i < shapes.size() ; ++i)
   {
-    centers_.push_back(center);
-    radii_.push_back(radius);
+    double radius;
+    Eigen::Vector3d center;
+    shapes::computeShapeBoundingSphere(shapes[i].get(), center, radius);
+    if (radius > std::numeric_limits<double>::min())
+    {
+      centers_.push_back(center);
+      radii_.push_back(radius);
+    }
   }
   dirty_ = false;
 }
@@ -224,7 +228,8 @@ const boost::shared_ptr<const bodies::Body>& robot_sphere_representation::LinkSp
   if (!body_)
   {
     static const shapes::Sphere empty_shape(0.0);
-    const shapes::Shape *shape = link_model_->getShape().get();
+    //\todo make this work with multiple shapes
+    const shapes::Shape *shape = link_model_->getShapes().empty() ? NULL : link_model_->getShapes()[0].get();
     if (!shape)
       shape = &empty_shape;
     body_.reset(bodies::createBodyFromShape(shape));
@@ -272,5 +277,3 @@ void robot_sphere_representation::LinkSphereRepresentation::genSpheresUsingSpher
   }
   dirty_ = false;
 }
-
-

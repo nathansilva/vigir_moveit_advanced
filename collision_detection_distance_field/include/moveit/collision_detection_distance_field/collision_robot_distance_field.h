@@ -14,7 +14,7 @@
  *     copyright notice, this list of conditions and the following
  *     disclaimer in the documentation and/or other materials provided
  *     with the distribution.
- *   * Neither the name of the Willow Garage nor the names of its
+ *   * Neither the name of Willow Garage nor the names of its
  *     contributors may be used to endorse or promote products derived
  *     from this software without specific prior written permission.
  *
@@ -188,7 +188,7 @@ protected:
   virtual void updatedPaddingOrScaling(const std::vector<std::string> &links);
 
 
-  
+
 
 private:
 
@@ -202,6 +202,7 @@ private:
   struct DFLink
   {
     const std::string* name_;
+    const robot_model::LinkModel *link_model_;
     LinkIndex index_in_model_;
     LinkIndex index_in_link_order_;
     SphereIndex sphere_idx_begin_;
@@ -209,7 +210,7 @@ private:
 
     // one bit per link in link_order_.  1=ignore collisions, 0=check collisions
     BitArray acm_bits_;
-    
+
     // distance field representing link in link collision frame
     StaticDistanceField df_;
 
@@ -269,12 +270,8 @@ private:
   // return the LinkModel for a link index
   const robot_model::LinkModel* linkIndexToLinkModel(int link_index) const;
 
-  // return the LinkState for a link index
-  robot_state::LinkState* linkIndexToLinkState(int link_index, const robot_state::RobotState* state) const;
-
   // return name for a link index
   const std::string& linkIndexToName(int link_index) const;
-
 
 
 
@@ -284,7 +281,7 @@ private:
   // return the LinkModel for a particular sphere index in sphere_centers_, sphere_radii_, or sphere_link_map_
   const robot_model::LinkModel* sphereIndexToLinkModel(int sphere_index) const;
 
-  // lookup index for a link. 
+  // lookup index for a link.
   //   -1 if link has no geometry or does not exist.
   const int linkNameToIndex(const std::string& link_name) const;
 
@@ -414,7 +411,7 @@ private:
       DFContact *df_contact,            // this gets filled in if not NULL
       const DFLink& link_a,                       // the link with the distance field
       const DFLink& link_b,                       // the link with the sphere
-      const robot_state::LinkState& lsa,          // LinkState for link_a
+      const Eigen::Affine3d& link_a_tf,           // transform for link_a
       const DistPosEntry& df_entry_a,             // distance field entry
       double dist,                                // collision distance (aka -depth)
       const Eigen::Vector3d& sphere_center_b_in_link_a_coord_frame,  // the sphere center in link_a's coord frame
@@ -444,14 +441,14 @@ private:
   //===========================================================================
   // Work area
   //===========================================================================
-  
+
   // mutable thread specific work area
   mutable boost::thread_specific_ptr<WorkArea> work_area_;
 
   //===========================================================================
   // Sphere data
   //===========================================================================
-  
+
   // This defines the "link order".  It contains only links with collision geometry.
   // The position in the array is the LinkIndex.
   // The value stored is the index into the RobotModel::getLinkModels() and
@@ -489,11 +486,11 @@ private:
   //===========================================================================
   // DF data for self collision
   //===========================================================================
-  
+
   // This is how much bigger distance fields must be compared to the objects they describe.
   // This is also used as the max distance when calculating distance fields on the fly.
   // The value is based on MAX_DISTANCE_ and the size of the largest link.
-  double max_df_distance_;  
+  double max_df_distance_;
 
   std::vector<DFLink> links_;
 

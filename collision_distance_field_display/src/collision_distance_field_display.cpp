@@ -1,31 +1,36 @@
-/*
- * Copyright (c) 2013, Willow Garage, Inc.
- * All rights reserved.
+/*********************************************************************
+ * Software License Agreement (BSD License)
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
+ *  Copyright (c) 2013, Willow Garage, Inc.
+ *  All rights reserved.
  *
- *     * Redistributions of source code must retain the above copyright
- *       notice, this list of conditions and the following disclaimer.
- *     * Redistributions in binary form must reproduce the above copyright
- *       notice, this list of conditions and the following disclaimer in the
- *       documentation and/or other materials provided with the distribution.
- *     * Neither the name of the Willow Garage, Inc. nor the names of its
- *       contributors may be used to endorse or promote products derived from
- *       this software without specific prior written permission.
+ *  Redistribution and use in source and binary forms, with or without
+ *  modification, are permitted provided that the following conditions
+ *  are met:
  *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
- * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE
- * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
- * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
- * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
- * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
- * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
- * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
- */
+ *   * Redistributions of source code must retain the above copyright
+ *     notice, this list of conditions and the following disclaimer.
+ *   * Redistributions in binary form must reproduce the above
+ *     copyright notice, this list of conditions and the following
+ *     disclaimer in the documentation and/or other materials provided
+ *     with the distribution.
+ *   * Neither the name of Willow Garage nor the names of its
+ *     contributors may be used to endorse or promote products derived
+ *     from this software without specific prior written permission.
+ *
+ *  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+ *  "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ *  LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
+ *  FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
+ *  COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
+ *  INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+ *  BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+ *  LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+ *  CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ *  LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
+ *  ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+ *  POSSIBILITY OF SUCH DAMAGE.
+ *********************************************************************/
 
 /* Author: Acorn Pooley */
 
@@ -340,7 +345,7 @@ moveit_rviz_plugin::CollisionDistanceFieldDisplay::CollisionDistanceFieldDisplay
                                       "Visualize different meshes and examine/debug mesh algorithms.",
                                       robot_state_category_);
 
-  
+
 
   robot_state_category_->expand();
 
@@ -348,7 +353,7 @@ moveit_rviz_plugin::CollisionDistanceFieldDisplay::CollisionDistanceFieldDisplay
 
 moveit_rviz_plugin::CollisionDistanceFieldDisplay::~CollisionDistanceFieldDisplay()
 {
-  background_process_.setJobUpdateEvent(BackgroundProcessing::JobUpdateCallback());
+  background_process_.clearJobUpdateEvent();
   clearJobs();
 
   robot_visual_.reset();
@@ -459,7 +464,7 @@ void moveit_rviz_plugin::CollisionDistanceFieldDisplay::onRobotModelLoaded()
   robot_state::RobotStatePtr state(new robot_state::RobotState(getRobotModel()));
   robot_state_handler_.reset(new robot_interaction::RobotInteraction::InteractionHandler("current", *state, planning_scene_monitor_->getTFClient()));
   robot_state_handler_->setUpdateCallback(boost::bind(&CollisionDistanceFieldDisplay::markersMoved, this, _1, _2));
-  robot_state_handler_->setStateValidityCallback(boost::bind(&CollisionDistanceFieldDisplay::isIKSolutionCollisionFree, this, _1, _2));
+  robot_state_handler_->setGroupStateValidityCallback(boost::bind(&CollisionDistanceFieldDisplay::isIKSolutionCollisionFree, this, _1, _2, _3));
 
   if (!active_group_property_->getStdString().empty() &&
       !getRobotModel()->hasJointModelGroup(active_group_property_->getStdString()))
@@ -515,12 +520,12 @@ void moveit_rviz_plugin::CollisionDistanceFieldDisplay::markersMoved(robot_inter
   robotVisualPositionChanged();
 }
 
-bool moveit_rviz_plugin::CollisionDistanceFieldDisplay::isIKSolutionCollisionFree(robot_state::JointStateGroup *group, const std::vector<double> &ik_solution) const
+bool moveit_rviz_plugin::CollisionDistanceFieldDisplay::isIKSolutionCollisionFree(robot_model::RobotState *state, const robot_model::JointModelGroup *group, const double *ik_solution) const
 {
   if (collision_aware_ik_property_->getBool() && planning_scene_monitor_)
   {
-    group->setVariableValues(ik_solution);
-    bool res = !getPlanningSceneRO()->isStateColliding(*group->getRobotState(), group->getName());
+    state->setJointGroupPositions(group, ik_solution);
+    bool res = !getPlanningSceneRO()->isStateColliding(*state, group->getName());
     return res;
   }
   else
@@ -749,7 +754,7 @@ void moveit_rviz_plugin::CollisionDistanceFieldDisplay::showContactPoints(
   req.contacts = true;
   req.max_contacts = 1000;
   req.max_contacts_per_pair = 100;
-  
+
   crobot->checkSelfCollision(req, res, state, ps->getAllowedCollisionMatrix());
 
   contact_points_display_.reset(new ShapesDisplay(planning_scene_node_,
@@ -801,7 +806,7 @@ void moveit_rviz_plugin::CollisionDistanceFieldDisplay::showCollisionDistance(
       distance_display_.reset(new ShapesDisplay(planning_scene_node_, color));
       if (df_distance.sphere_radius_1 > 0.0)
       {
-        
+
         distance_display_->addSphere(df_distance.sphere_center_1, df_distance.sphere_radius_1);
         distance_display_->addArrow(df_distance.pos, df_distance.sphere_center_1);
       }
@@ -837,13 +842,13 @@ void moveit_rviz_plugin::CollisionDistanceFieldDisplay::updateLinkColors(const r
     setLinkColor(&robot_visual_->getRobot(), *link, colliding_link_color_property_->getColor());
   }
 
-  std::vector<robot_state::JointState*>::const_iterator joint = state.getJointStateVector().begin();
-  std::vector<robot_state::JointState*>::const_iterator joint_end = state.getJointStateVector().end();
+  std::vector<const robot_model::JointModel*>::const_iterator joint = state.getRobotModel()->getJointModels().begin();
+  std::vector<const robot_model::JointModel*>::const_iterator joint_end = state.getRobotModel()->getJointModels().end();
   for ( ; joint != joint_end ; ++joint)
   {
-    if (!(*joint)->satisfiesBounds())
+    if (!state.satisfiesBounds(*joint))
     {
-      const std::string& link = (*joint)->getJointModel()->getChildLinkModel()->getName();
+      const std::string& link = (*joint)->getChildLinkModel()->getName();
       setLinkColor(&robot_visual_->getRobot(), link, joint_violation_link_color_property_->getColor());
     }
   }
@@ -869,7 +874,7 @@ void moveit_rviz_plugin::CollisionDistanceFieldDisplay::updateRobotVisual()
 {
   if (!robot_model_loaded_)
     return;
-  
+
   if (robot_visual_dirty_)
   {
     robot_visual_dirty_ = false;
@@ -879,7 +884,7 @@ void moveit_rviz_plugin::CollisionDistanceFieldDisplay::updateRobotVisual()
     bool col = show_robot_collision_property_->getBool();
 
     robot_visual_->setAlpha(robot_alpha_property_->getFloat());
-    
+
     robot_visual_->setCollisionVisible(col);
     robot_visual_->setVisualVisible(vis);
     robot_visual_->setVisible(isEnabled() && (vis || col));
@@ -913,20 +918,20 @@ void moveit_rviz_plugin::CollisionDistanceFieldDisplay::publishTF()
   if (!state)
     return;
 
-  const std::vector<robot_state::LinkState*> &ls = state->getLinkStateVector();
-  std::vector<geometry_msgs::TransformStamped> transforms(ls.size());
+  const std::vector<const robot_model::LinkModel*> &lm = state->getRobotModel()->getLinkModels();
+  std::vector<geometry_msgs::TransformStamped> transforms(lm.size());
   const std::string &planning_frame = planning_scene_monitor_->getPlanningScene()->getPlanningFrame();
   std::size_t j = 0;
   ros::Time now = ros::Time::now();
-  for (std::size_t i = 0 ; i < ls.size() ; ++i)
+  for (std::size_t i = 0 ; i < lm.size() ; ++i)
   {
-    if (ls[i]->getName() == planning_frame)
+    if (lm[i]->getName() == planning_frame)
       continue;
-    const Eigen::Affine3d &t = ls[i]->getGlobalLinkTransform();
-    const robot_state::LinkState* pls = ls[i]->getParentLinkState();
+    const Eigen::Affine3d &t = state->getGlobalLinkTransform(lm[i]);
+    const robot_model::LinkModel* pls = lm[i]->getParentJointModel() ? lm[i]->getParentJointModel()->getParentLinkModel() : NULL;
     if (PUBLISH_TF_AS_JOINT_TREE && pls)
     {
-      const Eigen::Affine3d &pt = pls->getGlobalLinkTransform();
+      const Eigen::Affine3d &pt = state->getGlobalLinkTransform(pls);
       Eigen::Affine3d rel = pt.inverse() * t;
 
       tf::transformEigenToMsg(rel, transforms[j].transform);
@@ -938,7 +943,7 @@ void moveit_rviz_plugin::CollisionDistanceFieldDisplay::publishTF()
       transforms[j].header.frame_id = planning_frame;
     }
     transforms[j].header.stamp = now;
-    transforms[j].child_frame_id = ls[i]->getName();
+    transforms[j].child_frame_id = lm[i]->getName();
     ++j;
   }
 
@@ -975,4 +980,3 @@ void moveit_rviz_plugin::CollisionDistanceFieldDisplay::updateRobotMarkers()
     robot_interaction_->updateInteractiveMarkers(robot_state_handler_);
   }
 }
-

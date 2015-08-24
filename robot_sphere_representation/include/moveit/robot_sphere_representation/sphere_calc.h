@@ -14,7 +14,7 @@
  *     copyright notice, this list of conditions and the following
  *     disclaimer in the documentation and/or other materials provided
  *     with the distribution.
- *   * Neither the name of the Willow Garage nor the names of its
+ *   * Neither the name of Willow Garage nor the names of its
  *     contributors may be used to endorse or promote products derived
  *     from this software without specific prior written permission.
  *
@@ -41,6 +41,7 @@
 #include <boost/shared_ptr.hpp>
 
 #include <eigen_stl_containers/eigen_stl_containers.h>
+#include <moveit/macros/class_forward.h>
 #include <Eigen/Geometry>
 #include <Eigen/StdVector>
 #include <vector>
@@ -61,18 +62,17 @@ namespace distance_field
   class PropagationDistanceField;
 }
 
-namespace robot_model
+namespace moveit
 {
-class RobotModel;
+namespace core
+{
+MOVEIT_CLASS_FORWARD(RobotModel);
+MOVEIT_CLASS_FORWARD(RobotState);
 class LinkModel;
 class JointModel;
 }
-
-namespace robot_state
-{
-class RobotState;
-class LinkState;
 }
+
 
 namespace robot_sphere_representation
 {
@@ -190,15 +190,16 @@ public:
   // nspheres: requested number of spheres (ignored by some methods)
   // resolution: resolution that was used to generate points and to use for distance field
   // required_points: sample points in the object.  Should be covered by sphere
-  // optional_points: sample points in the object that are also in the parent object 
+  // optional_points: sample points in the object that are also in the parent object
   SphereCalc(std::size_t nspheres,
             double resolution,
             const EigenSTL::vector_Vector3d& required_points,
             const EigenSTL::vector_Vector3d& optional_points,
 #if 1
-            const robot_state::LinkState* link_state,
+            const moveit::core::RobotStateConstPtr &robot_state,
+            const moveit::core::LinkModel* link_model,
 #else
-            boost::shared_ptr<const shapes::Shape> shape,
+            const boost::shared_ptr<const shapes::Shape> &shape,
             const Eigen::Affine3d& shape_transform,
 #endif
             const std::string& name = "",
@@ -307,16 +308,16 @@ private:
   V3 df_aabb_size_;
   AABBi df_body_aabb_;   // just the shape, in grid coords
   boost::shared_ptr<distance_field::PropagationDistanceField> df_;
-  
+
 
   class Grid;
   class Voxel;
   boost::shared_ptr<Grid> voxel_grid_;
-  
+
   class ConcaveGrid;
   class ConcaveVoxel;
   boost::shared_ptr<ConcaveGrid> concave_voxel_grid_;
-  
+
 
   V3List required_points_;
   V3List optional_points_;
@@ -374,8 +375,9 @@ private:
   std::vector<Result> history_; // for debugging
   bool save_history_;
 
-  const robot_state::LinkState *link_state_;
-
+  moveit::core::RobotStateConstPtr robot_state_;
+  const moveit::core::LinkModel *link_model_;
+  
   mutable V3iSet optional_point_set_;
   mutable V3iSet thinned_point_set_;
   mutable V3iSet corner_point_set_;
@@ -390,7 +392,7 @@ class Robot;
 /** one link in the Robot.  For initializing CollisionRobotDF2 */
 class Link {
 public:
-  Link(Robot *robot, Link *parent, const robot_model::LinkModel *lmodel);
+  Link(Robot *robot, Link *parent, const moveit::core::RobotStateConstPtr &state, const moveit::core::LinkModel *lmodel);
   ~Link();
   const std::string& getName() const;
   void calculatePoints();
@@ -405,7 +407,7 @@ public:
   // transform points from robot frame to link collision frame
   Eigen::Vector3d transformRobotToLink(Eigen::Vector3d p);
   void transformRobotToLink(EigenSTL::vector_Vector3d::iterator begin,
-                            EigenSTL::vector_Vector3d::iterator end); 
+                            EigenSTL::vector_Vector3d::iterator end);
 
   bool hasCollision()
   {
@@ -415,14 +417,15 @@ public:
 private:
   Robot *robot_;
   Link *parent_;
-  robot_state::LinkState *lstate_;
+  moveit::core::RobotStateConstPtr robot_state_;
+  const moveit::core::LinkModel *lmodel_;
   V3iSet all_points_;                 // points in link
   V3iSet post_cull_points_;           // temp: points in link that are not culled
   V3iSet all_points_with_children_;   // temp: points in child links
   V3iSet parent_points_;              // temp: points in all parent links
   V3iSet final_points_;               // points in link with parent points removed
   bool has_collision_;    // worth colliding after culling?
-  bodies::Body* body_;
+  bodies::Body *body_;
   PointCluster *cluster_;
   SphereCalc *sphere_calc_;
 
@@ -432,11 +435,11 @@ private:
 /** Robot representation.  For initializing CollisionRobotDF2 */
 class Robot {
 public:
-  Robot(const boost::shared_ptr<const robot_model::RobotModel>& kmodel, double resolution);
+  Robot(const moveit::core::RobotModelConstPtr& robot_model, double resolution);
   ~Robot();
 
-  void initLink(Link *parent, const robot_model::LinkModel *lmodel);
-  void initJoint(Link *parent, const robot_model::JointModel *jmodel);
+  void initLink(Link *parent, const moveit::core::LinkModel *lmodel);
+  void initJoint(Link *parent, const moveit::core::JointModel *jmodel);
 
   double gridToWorld(int grid) const;
   int worldToGrid(double world) const;
@@ -501,25 +504,25 @@ private:
                   const std::string ns,
                   int id) const;
 
-  bool RemoveChildOccludedLinks2Pre(const robot_model::LinkModel& link_model, Link *parent);
-  void RemoveChildOccludedLinksPost(const robot_model::LinkModel& link_model);
+  bool RemoveChildOccludedLinks2Pre(const moveit::core::LinkModel& link_model, Link *parent);
+  void RemoveChildOccludedLinksPost(const moveit::core::LinkModel& link_model);
   void RemoveChildOccludedLinks();
 
-  bool CullLinks2Pre(const robot_model::LinkModel& link_model, Link *parent);
-  bool CullLinksPre(const robot_model::LinkModel& link_model);
+  bool CullLinks2Pre(const moveit::core::LinkModel& link_model, Link *parent);
+  bool CullLinksPre(const moveit::core::LinkModel& link_model);
   void CullLinks();
 
 
-  bool GenerateFinalPointsPre(const robot_model::LinkModel& link_model);
+  bool GenerateFinalPointsPre(const moveit::core::LinkModel& link_model);
   void GenerateFinalPoints();
 
-  bool RemoveTempPointsPre(const robot_model::LinkModel& link_model);
+  bool RemoveTempPointsPre(const moveit::core::LinkModel& link_model);
   void RemoveTempPoints();
 
 
-  boost::shared_ptr<const robot_model::RobotModel> kmodel_;
-  boost::shared_ptr<robot_state::RobotState> kstate_;
-  
+  moveit::core::RobotModelConstPtr robot_model_;
+  moveit::core::RobotStatePtr robot_state_;
+
   std::map<std::string, Link*> links_;
   double resolution_;
   double oo_resolution_;
@@ -557,7 +560,7 @@ public:
   double getResolution() const { return resolution_; }
 
   void clear(const T& val);
-         
+
 private:
   int index(const Eigen::Vector3i& grid) const;
 
@@ -598,7 +601,7 @@ public:
   DFLinkGrid(const Eigen::Vector3d& origin,
              const Eigen::Vector3d& size,
              double resolution);
-  
+
   // clear all values to empty
   void clear();
 
@@ -646,7 +649,7 @@ inline void robot_sphere_representation::DFGrid<T>::resize(
   origin_minus_ = origin_ - (0.5 * resolution_);
   zstride_ = isize_.x() * isize_.y();
 
-  max_dist_ = 
+  max_dist_ =
 
   total_cells_ = isize_.x() * isize_.y() * isize_.z();
   data_ = new T[total_cells_];
