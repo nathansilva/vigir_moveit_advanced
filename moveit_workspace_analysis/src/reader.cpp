@@ -46,12 +46,17 @@ int main(int argc, char **argv)
   /*Get some ROS params */
   ros::NodeHandle node_handle("~");
   std::string filename;
+  
+  double marker_size;
+  node_handle.getParam("marker_size", marker_size);
+
   if (!node_handle.getParam("filename", filename))
     ROS_FATAL("No filename to read from");
 
   moveit_workspace_analysis::WorkspaceMetrics metrics;
 
   ROS_INFO("Reading from file: %s", filename.c_str());
+
 
   if(!filename.empty())
     if(!metrics.readFromFile(filename, 4))
@@ -79,7 +84,7 @@ int main(int argc, char **argv)
   bool smooth_colors;
   node_handle.param("smooth_colors",smooth_colors,true);
   
-  visualization_msgs::Marker marker = metrics.getDensityMarker(0.02, 0, "me",smooth_colors);
+  visualization_msgs::Marker marker = metrics.getDensityMarker(marker_size, 0, "me",smooth_colors);
   marker.header.frame_id = metrics.frame_id_;
   marker.header.stamp = ros::Time::now();
   display_publisher.publish(marker);

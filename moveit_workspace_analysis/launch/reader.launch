@@ -8,6 +8,7 @@
 	  	<node name="moveit_workspace_reader" pkg="moveit_workspace_analysis" type="workspace_reader_node" respawn="true" output="screen">
 	    	<param name="filename" value="$(find moveit_workspace_analysis)/$(arg namespace).txt" />
 	    	<param name="smooth_color" value="$(arg smooth_color)"/>
+			<param name="marker_size" value="0.02" />
 	  	</node>
   	</group>
 </launch>

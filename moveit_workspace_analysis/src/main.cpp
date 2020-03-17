@@ -59,6 +59,9 @@ int main(int argc, char **argv)
   double max_x, max_y, max_z;
   
   double roll, pitch, yaw;
+  float roll_min,roll_max,pitch_min,pitch_max,yaw_min,yaw_max;
+  float res_roll,res_pitch,res_yaw;
+
   int max_attempts;
   double joint_limits_penalty_multiplier;
   std::string group_name;
@@ -86,13 +89,25 @@ int main(int argc, char **argv)
   if (!node_handle.getParam("max_attempts", max_attempts))
     max_attempts = 10000;
 
-  if (!node_handle.getParam("roll", roll))
-    roll = 0.0;
-  if (!node_handle.getParam("pitch", pitch))
-    pitch = 0.0;
-  if (!node_handle.getParam("yaw", yaw))
-    yaw = 0.0;
+  // if (!node_handle.getParam("roll", roll))
+  //   roll = 0.0;
+  // if (!node_handle.getParam("pitch", pitch))
+  //   pitch = 0.0;
+  // if (!node_handle.getParam("yaw", yaw))
+  //   yaw = 0.0;
 
+  node_handle.getParam("roll_min", roll_min);
+  node_handle.getParam("roll_max", roll_max);
+  node_handle.getParam("pitch_min", pitch_min);
+  node_handle.getParam("pitch_max", pitch_max);
+  node_handle.getParam("yaw_min", yaw_min);
+  node_handle.getParam("yaw_max", yaw_max);
+
+  node_handle.getParam("res_roll", res_roll);
+  node_handle.getParam("res_pitch", res_pitch);
+  node_handle.getParam("res_yaw", res_yaw);
+
+  
   if (!node_handle.getParam("joint_limits_penalty_multiplier", joint_limits_penalty_multiplier))
     joint_limits_penalty_multiplier = 0.0;
 
@@ -148,17 +163,34 @@ int main(int argc, char **argv)
     std::vector<geometry_msgs::Quaternion> orientations;
     geometry_msgs::Quaternion quaternion;
 
+
+    for(float i=roll_min; i<=roll_max; i=i+res_roll)
+      for(float j=pitch_min; j<=pitch_max; j=j+res_pitch)
+        for(float k=yaw_min; k<yaw_max; k=k+res_yaw)
+          {
+            tf::Quaternion q;
+            roll=i;
+            pitch=j;
+            yaw=k;  
+            q.setRPY(roll, pitch, yaw);
+            tf::quaternionTFToMsg(q, quaternion);
+            orientations.emplace_back(quaternion);
+          }
+
     //yaw = -M_PI*0.0;
     //roll = M_PI*0.49;
 
     // translate roll, pitch and yaw into a Quaternion
-    tf::Quaternion q;
-    q.setRPY(roll, pitch, yaw);
-    geometry_msgs::Quaternion odom_quat;
-    tf::quaternionTFToMsg(q, quaternion);
+    // roll=0.1;
+    // pitch=0.1;
+    // yaw=0.1;
+    // tf::Quaternion q;
+    // q.setRPY(roll, pitch, yaw);
+    // geometry_msgs::Quaternion odom_quat;
+    // tf::quaternionTFToMsg(q, quaternion);
+    // orientations.push_back(quaternion);
 
-    orientations.push_back(quaternion);
-
+    std::cerr<<"******************COMPUTING METRICS******************"<<std::endl;
     metrics = workspace_analysis.computeMetrics(workspace, orientations, robot_state.get(), joint_model_group, res_x, res_y, res_z);
   }else{
     
